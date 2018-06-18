@@ -3,6 +3,9 @@
 example exercise
 V1 1 0 2V
 R1 1 2 2ohm
-Vm 2 3 0V;
-R2 3 0 2ohm
+R2 2 3 2ohm
+Vm 4 3 0
+R3 4 5 2ohm
+I1 5 6 2A
+H1 6 0 Vm 2
 .END
