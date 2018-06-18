@@ -1,0 +1,3 @@
+[submodule "MatlabMNA"]
+	path = MatlabMNA
+	url = https://github.com/elecosystem/Matlab-MNA.git
