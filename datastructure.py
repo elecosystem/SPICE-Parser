@@ -34,11 +34,11 @@ class Circuit:
 	
 	#get branches with nodes (start end) nds
 	def getBranchesNodes(self,nds):
-		return list(filter(lambda x: (x.node1==nds[0] and x.node2==nds[1]) or (x.node1==nds[1] and x.node2==nds[0]),self.branches)) #TODO correct private
+		return list(filter(lambda x: (x.node1==nds[0] and x.node2==nds[1]) or (x.node1==nds[1] and x.node2==nds[0]),self.branches))
 
 	#get branches that connect to node nd
 	def getBranchesNode(self,nd):
-		return list(filter(lambda x: x.node1==nd or x.node2==nd,self.branches)) #TODO correct private
+		return list(filter(lambda x: x.node1==nd or x.node2==nd,self.branches)) 
 
 	def renameNode(self,nnew,nold):
 		for _br in self.branches:
@@ -50,48 +50,63 @@ class Circuit:
 			_br.setNodes(tuple(_nds))
 
 
-#TODO Funcao de procura de fontes corrente,resistencias,fontes de tensao para ter disponivel para corrigir as dependencias 
-
-	def renameNodesDep(self,nsnew,nsold):
+	def changedep(self,brnew,brold):
 		for _br in self.branches:
-			if _br.getComponent().dependent!=None and _br.getComponent().dependent.getNodes()==nsold:
-				_br.getComponent().dependent.setNodes(nsnew)
+			if _br.getComponent().dependent!=None and _br.getComponent().dependent.getNodes()==brold.getNodes():
+				_br.getComponent().dependent=brnew
 
-	def smartAltBranch(self,nds,winning_node):
-		#TODO!!
-
-		if len(self.getBranchesNode(nds[0]))==2:
-			_tmp=self.getBranchesNode(nds[0])	
-			if _tmp[0].getNodes()[1]==nds[0]:
-				_id=_tmp[0].getNodes()[0]
-			elif _tmp[1].getNodes()[1]==nds[0]:
-				_id=_tmp[1].getNodes()[0]
-			#FIXME!
-			elif _tmp[0].getNodes()[0]==nds[0]:
-				_id=_tmp[0].getNodes()[1]
-			elif _tmp[1].getNodes()[0]==nds[0]:
-				_id=_tmp[0].getNodes()[1]
-			else:
-				assert False, "Cant find correct branch!"
-				
-			return (_id,winning_node)	
-		elif len(self.getBranchesNode(nds[1]))==2:
-			_tmp=self.getBranchesNode(nds[1])	
-			if _tmp[0].getNodes()[0]==nds[1]:
-				_id=_tmp[0].getNodes()[1]
-			elif _tmp[1].getNodes()[0]==nds[1]:
-				_id=_tmp[1].getNodes()[1]
-			elif _tmp[0].getNodes()[0]==nds[1]:
-				_id=_tmp[0].getNodes()[1]
-			elif _tmp[1].getNodes()[0]==nds[1]:
-				_id=_tmp[0].getNodes()[1]
-			else:
-				assert False, "Cant find correct branch!"
-
-			return (winning_node,_id)		
-		else:
-			assert False,"No alternative branch to hang a dependence!"
+	#returns the best alternative branch to read the current
+	def smartAltBranch(self,nds):
 		
+		for target in ['I','R','V']:
+
+			#first search for one direction, then the other one
+			for startnode in range(2):
+				#print("startnode=",startnode)
+				_brs=self.getBranchesNode(nds[startnode])
+				if(len(_brs)!=2):
+					continue
+
+				if _brs[0].getNodes()==nds:
+					lastbr=_brs[0]
+					checkthisbr=_brs[1]
+				else:
+					checkthisbr=_brs[0]
+					lastbr=_brs[1]
+
+
+				while True:
+					if checkthisbr.getNodes()==nds:
+						break
+		
+					if checkthisbr.getComponent().ctype==target:
+						#print("Found alternative="+repr(checkthisbr))
+						return checkthisbr 
+
+					for nextnode in range(2):
+						found_next_hop=False
+						_brs=self.getBranchesNode(checkthisbr.getNodes()[nextnode])
+						if(len(_brs)==2):
+							if _brs[0].getNodes()!=checkthisbr.getNodes() and _brs[0].getNodes()!=lastbr.getNodes():
+								#print("got in 1")
+								lastbr=checkthisbr
+								checkthisbr=_brs[0]
+								found_next_hop=True
+								break
+							elif _brs[1].getNodes()!=checkthisbr.getNodes() and _brs[1].getNodes()!=lastbr.getNodes():
+								#print("got in 2")
+								lastbr=checkthisbr
+								checkthisbr=_brs[1]
+								found_next_hop=True
+								break
+
+					if found_next_hop:
+						continue
+					else:
+						#print("break")
+						break
+
+		assert False, "No alternative branch"
 
 	#Removes all 0V Voltage sources, 0Ohm Resistors and 0H Inductors used for current measurement
 	def removeBadBranches(circ):
@@ -105,14 +120,12 @@ class Circuit:
 						circ.branches.remove(_br) #simply remove dummy branch
 					else: 
 						_nds=_br.getNodes()
-
+						_alternative=circ.smartAltBranch(_nds)
+						circ.changedep(_alternative,_br)
 						if _nds[1]==0: #rename nodes/branches
-							circ.renameNodesDep(circ.smartAltBranch(_nds,_nds[1]),_nds)
 							circ.renameNode(_nds[1],_nds[0])
 						else:
-							circ.renameNodesDep(circ.smartAltBranch(_nds,_nds[0]),_nds)
 							circ.renameNode(_nds[0],_nds[1])	
-
 						circ.branches.remove(_br) #remove branch/component
 
 					done=False
@@ -136,8 +149,7 @@ class Circuit:
 		_nlst=list(_mp)
 		
 		#fix node numbers
-		#FIXME might be bugged
-		for _br in circ.branches+[a.getComponent().dependent for a in circ.branches if a.getComponent().dependent!=None]:
+		for _br in circ.branches:
 			_gn=_br.getNodes()	
 
 			_nnn=[0,0]

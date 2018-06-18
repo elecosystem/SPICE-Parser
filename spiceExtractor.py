@@ -13,8 +13,12 @@ class spiceExtractor(spiceListener):
 
 	# Exit a parse tree produced by spiceParser#netlist.
 	def exitNetlist(self, ctx:spiceParser.NetlistContext):
-		pass
-
+		#Fix dependencies
+		for br in self.circ.branches:
+			if br.getComponent().dependent!=None:
+				if len(br.getComponent().dependent.getNodes())<1:
+					assert False,"Inconsistent Netlist, at least one dependency is not met"
+				br.getComponent().dependent=self.circ.getBranchesNodes(br.getComponent().dependent.getNodes())[0]
 
 	# Enter a parse tree produced by spiceParser#title.
 	def enterTitle(self, ctx:spiceParser.TitleContext):
@@ -36,7 +40,7 @@ class spiceExtractor(spiceListener):
 		if ctx.sn!=None: #nodes dependency (tension)
 			_gb=self.circ.getBranchesNodes((int(ctx.sn.n1.text),int(ctx.sn.n2.text)))	
 			assert len(_gb)>0,"Branch ("+ctx.sn.n1.text+","+ctx.sn.n2.text+") does not exist"
-			#FIXME maybe create a new branch?
+
 			_dep=Branch(int(ctx.sn.n1.text),int(ctx.sn.n2.text),None)
 		elif ctx.cd!=None: #component dependency (current)
 			_tmp=self.circ.getBranchCompName(ctx.cd.text)
@@ -62,7 +66,7 @@ class spiceExtractor(spiceListener):
 		_val=float(_val)
 
 		#Create a Component
-		_c=Component(ctx.name.text,ctx.name.text[0],_val,_scale,_dep) #FIXME ctype, value, scale
+		_c=Component(ctx.name.text,ctx.name.text[0],_val,_scale,_dep) #Check ctype, value, scale
 
 		#Place inside branch
 		_b=Branch(int(ctx.nodes(0).n1.text),int(ctx.nodes(0).n2.text),_c)

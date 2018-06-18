@@ -25,12 +25,11 @@ def main(argv):
 	extractor=spiceExtractor(raw_circuit)
 	walker.walk(extractor,tree)
 
-	print(raw_circuit)
 	#Raw circuit structure populated
 
-	#TODO: remove 0V components
-	#TODO: reajust idx
 	#TODO: feed final structure to MNA
+
+	#print(raw_circuit)
 
 	Circuit.removeBadBranches(raw_circuit)
 	Circuit.fixNodes(raw_circuit)
@@ -40,7 +39,3 @@ def main(argv):
  
 if __name__ == '__main__':
 	main(sys.argv)
-
-#terça feira 18h30
-#mensal topicos alto nivel
-#changelog tecnico
